@@ -48,29 +48,42 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /message → message actuel (texte brut)
-  if (url === "/message" && req.method === "GET") {
-    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end(currentMessage, "utf-8");
+  // CORS: allow frontend from any origin when deployed separately
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, corsHeaders);
+    res.end();
     return;
   }
 
-  // POST /message → nouveau message (max 240 caractères)
+  // GET /message → message actuel (texte brut), défaut si vide
+  if (url === "/message" && req.method === "GET") {
+    const body = currentMessage || "Someone was here before you.";
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
+    res.end(body, "utf-8");
+    return;
+  }
+
+  // POST /message → nouveau message (max 240 caractères), stocké pour le prochain visiteur
   if (url === "/message" && req.method === "POST") {
     try {
       const body = await readBody(req);
       const text = (body || "").trim();
       if (text.length > 240) {
-        res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Message trop long (max 240 caractères).", "utf-8");
+        res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
+        res.end("Message too long (max 240 characters).", "utf-8");
         return;
       }
-      currentMessage = text || currentMessage; /* stocké pour la prochaine personne */
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      currentMessage = text || currentMessage;
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
       res.end(currentMessage, "utf-8");
     } catch (e) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end("Erreur serveur.");
+      res.writeHead(500, { "Content-Type": "text/plain", ...corsHeaders });
+      res.end("Server error.");
     }
     return;
   }
