@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <!-- Backend URL: set window.ANOTE_API_BASE to your Railway URL (no trailing slash). Leave empty for same-origin. -->
+  <script>
+    window.ANOTE_API_BASE = "anoteinthevoid-production.up.railway.app"; // e.g. "https://anoteinthevoid.up.railway.app" when frontend is on Vercel/GitHub Pages
+  </script>
   <div id="container">
     <div id="slot" aria-live="polite"></div>
     <div id="compose-area">
