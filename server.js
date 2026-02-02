@@ -48,11 +48,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // CORS: allow frontend from any origin when deployed separately
+  // CORS: allow frontend on Vercel (use "*" for testing or multiple origins)
+  const allowedOrigin = process.env.CORS_ORIGIN || "https://anoteinthevoid.vercel.app";
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400",
   };
   if (req.method === "OPTIONS") {
     res.writeHead(204, corsHeaders);
