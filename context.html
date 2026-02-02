@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context — Anote in the Void</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .context-page { padding: 2rem; max-width: 520px; margin: 0 auto; text-align: left; }
+    .context-page h1 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; opacity: 0.9; }
+    .context-page p { font-size: 0.9rem; line-height: 1.6; font-weight: normal; opacity: 0.8; margin-bottom: 1rem; }
+    .context-page a { color: inherit; opacity: 0.7; text-decoration: none; }
+    .context-page a:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="context-page">
+    <h1 id="context-title">Context</h1>
+    <p id="context-intro">A minimal space where someone before you left a message. The more you write, the more this message reveals itself. You can leave a word for the next visitor (240 characters).</p>
+    <p id="context-fragile">Messages here are fragile and ephemeral. You are the only person to see this message. Once this page closes, it will be permanently deleted. Handle it gently.</p>
+    <p><a href="/" id="context-back">← Back</a></p>
+  </div>
+  <div id="lang-switcher">
+    <button type="button" id="lang-btn" aria-haspopup="true" aria-expanded="false" title="Language">EN</button>
+    <div id="lang-dropdown" role="menu" aria-hidden="true"></div>
+  </div>
+  <script src="/translations.js"></script>
+  <script src="/context-i18n.js"></script>
+</body>
+</html>

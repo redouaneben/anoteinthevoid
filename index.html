@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anote in the Void</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="container">
+    <div id="slot" aria-live="polite"></div>
+    <div id="compose-area">
+      <textarea id="input-slot" placeholder="Leave something for the next person." maxlength="240" rows="4"></textarea>
+      <button type="button" id="submit-btn">Leave it</button>
+    </div>
+  </div>
+  <p id="poetic-footer" aria-live="polite"></p>
+  <div id="lang-switcher">
+    <button type="button" id="lang-btn" aria-haspopup="true" aria-expanded="false" title="Language">EN</button>
+    <div id="lang-dropdown" role="menu" aria-hidden="true">
+      <!-- filled by script -->
+    </div>
+  </div>
+  <a href="/context.html" id="context-link">?</a>
+  <script src="/translations.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>
