@@ -6,13 +6,12 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 
-// CORS: allow frontend from Vercel (or "*" for any origin)
+// CORS: allow cross-origin requests (GET, POST, OPTIONS). All responses include these headers.
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": CORS_ORIGIN,
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
 };
 
 // Message actuel (en mémoire)
