@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Anote in the Void</title>
+  <title>A note in the Void</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Backend URL: set window.ANOTE_API_BASE to your Railway URL (no trailing slash). Leave empty for same-origin. -->
+  <!-- Backend URL: set before script.js loads. Use full URL (https://...) for Vercel/GitHub Pages; leave empty for same-origin. -->
   <script>
-    window.ANOTE_API_BASE = "anoteinthevoid-production.up.railway.app"; // e.g. "https://anoteinthevoid.up.railway.app" when frontend is on Vercel/GitHub Pages
+    window.ANOTE_API_BASE = "https://anoteinthevoid-production.up.railway.app";
   </script>
   <div id="container">
     <div id="slot" aria-live="polite"></div>
