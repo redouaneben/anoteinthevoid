@@ -6,7 +6,16 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 
-// Message actuel (en mémoire pour cette base)
+// CORS: allow frontend from Vercel (or "*" for any origin)
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": CORS_ORIGIN,
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
+// Message actuel (en mémoire)
 let currentMessage = "Someone was here before you.";
 
 const mimeTypes = {
@@ -16,93 +25,106 @@ const mimeTypes = {
   ".json": "application/json",
 };
 
-function serveFile(res, filePath) {
+function serveFile(res, filePath, corsHeaders) {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = mimeTypes[ext] || "text/plain";
   fs.readFile(filePath, (err, content) => {
     if (err) {
-      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.writeHead(404, { "Content-Type": "text/plain", ...corsHeaders });
       res.end("404 Not Found");
     } else {
-      res.writeHead(200, { "Content-Type": contentType });
+      res.writeHead(200, { "Content-Type": contentType, ...corsHeaders });
       res.end(content, "utf-8");
     }
   });
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 256 * 1024) {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", (chunk) => { body += chunk; });
+    let total = 0;
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        req.destroy();
+        reject(new Error("Payload too large"));
+        return;
+      }
+      body += chunk;
+    });
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => {
   const url = req.url?.split("?")[0] ?? "/";
+  const method = req.method || "GET";
 
-  // GET / → page principale
-  if (url === "/" && req.method === "GET") {
-    serveFile(res, path.join(__dirname, "index.html"));
-    return;
-  }
-
-  // CORS: allow frontend on Vercel (use "*" for testing or multiple origins)
-  const allowedOrigin = process.env.CORS_ORIGIN || "https://anoteinthevoid.vercel.app";
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "86400",
-  };
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, corsHeaders);
+  // OPTIONS (preflight): respond immediately with CORS so browser allows actual request
+  if (method === "OPTIONS") {
+    res.writeHead(204, CORS_HEADERS);
     res.end();
     return;
   }
 
-  // GET /message → message actuel (texte brut), défaut si vide
-  if (url === "/message" && req.method === "GET") {
+  // GET /message
+  if (url === "/message" && method === "GET") {
     const body = currentMessage || "Someone was here before you.";
-    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
+    res.writeHead(200, {
+      "Content-Type": "text/plain; charset=utf-8",
+      ...CORS_HEADERS,
+    });
     res.end(body, "utf-8");
     return;
   }
 
-  // POST /message → nouveau message (max 240 caractères), stocké pour le prochain visiteur
-  if (url === "/message" && req.method === "POST") {
-    try {
-      const body = await readBody(req);
-      const text = (body || "").trim();
-      if (text.length > 240) {
-        res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
-        res.end("Message too long (max 240 characters).", "utf-8");
-        return;
-      }
-      currentMessage = text || currentMessage;
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders });
-      res.end(currentMessage, "utf-8");
-    } catch (e) {
-      res.writeHead(500, { "Content-Type": "text/plain", ...corsHeaders });
-      res.end("Server error.");
-    }
+  // POST /message
+  if (url === "/message" && method === "POST") {
+    readBody(req)
+      .then((raw) => {
+        const text = (raw || "").trim();
+        if (text.length > 240) {
+          res.writeHead(400, {
+            "Content-Type": "text/plain; charset=utf-8",
+            ...CORS_HEADERS,
+          });
+          res.end("Message too long (max 240 characters).", "utf-8");
+          return;
+        }
+        currentMessage = text || currentMessage;
+        res.writeHead(200, {
+          "Content-Type": "text/plain; charset=utf-8",
+          ...CORS_HEADERS,
+        });
+        res.end(currentMessage, "utf-8");
+      })
+      .catch(() => {
+        res.writeHead(500, { "Content-Type": "text/plain", ...CORS_HEADERS });
+        res.end("Server error.");
+      });
     return;
   }
 
-  // Fichiers statiques (CSS, JS, context.html, etc.)
-  if (req.method === "GET" && !url.includes("..")) {
-    const rel = url === "/" ? "index.html" : url.slice(1);
+  // GET / → page principale
+  if (url === "/" && method === "GET") {
+    serveFile(res, path.join(__dirname, "index.html"), CORS_HEADERS);
+    return;
+  }
+
+  // Fichiers statiques
+  if (method === "GET" && !url.includes("..")) {
+    const rel = url.slice(1) || "index.html";
     const filePath = path.resolve(__dirname, rel);
     const root = path.resolve(__dirname);
-    const allowed = filePath === root || filePath.startsWith(root + path.sep);
-    if (allowed) {
-      serveFile(res, filePath);
+    if (filePath === root || filePath.startsWith(root + path.sep)) {
+      serveFile(res, filePath, CORS_HEADERS);
       return;
     }
   }
 
-  res.writeHead(404, { "Content-Type": "text/plain" });
+  // 404 with CORS so frontend can see the response
+  res.writeHead(404, { "Content-Type": "text/plain", ...CORS_HEADERS });
   res.end("404 Not Found");
 });
 
