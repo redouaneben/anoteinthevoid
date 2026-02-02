@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Message actuel (en mémoire pour cette base)
 let currentMessage = "Someone was here before you.";
@@ -104,6 +104,6 @@ const server = http.createServer(async (req, res) => {
   res.end("404 Not Found");
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
