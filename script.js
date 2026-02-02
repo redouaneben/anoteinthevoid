@@ -24,18 +24,8 @@
   var DEFAULT_MESSAGE = "Someone was here before you.";
   var BLUR_REVEAL_MS = 700;
 
-  /** Base URL for API (GET/POST /message). Same-origin if unset. For split deployment set window.ANOTE_API_BASE or data-api-base on body. */
-  function getApiBase() {
-    if (typeof window === "undefined") return "";
-    var base = window.ANOTE_API_BASE;
-    if (base != null && base !== "") return String(base).replace(/\/$/, "");
-    var el = document.body || document.documentElement;
-    if (el && el.getAttribute) {
-      base = el.getAttribute("data-api-base");
-      if (base) return String(base).replace(/\/$/, "");
-    }
-    return "";
-  }
+  /** Backend base URL for GET/POST /message. Set in index.html before this script loads (window.ANOTE_API_BASE). Empty = same-origin. */
+  var base = (typeof window !== "undefined" && window.ANOTE_API_BASE) ? String(window.ANOTE_API_BASE).replace(/\/$/, "") : "";
 
   var slot = document.getElementById("slot");
   var inputSlot = document.getElementById("input-slot");
@@ -104,8 +94,7 @@
   }
 
   function loadMessage() {
-    var url = getApiBase() + "/message";
-    fetch(url)
+    fetch(base + "/message")
       .then(function (res) {
         if (!res.ok) throw new Error("GET failed");
         return res.text();
@@ -184,7 +173,7 @@
 
     submitBtn.disabled = true;
 
-    fetch(getApiBase() + "/message", {
+    fetch(base + "/message", {
       method: "POST",
       headers: { "Content-Type": "text/plain; charset=utf-8" },
       body: text,
