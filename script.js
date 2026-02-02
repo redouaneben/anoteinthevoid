@@ -4,11 +4,12 @@
  * Concept:
  * - #slot: displays only the message from the server (GET /message). Read-only. Blur 8px initially.
  *   Unblur is visual and proportional to what the user types in #input-slot; #slot never shows typed text.
+ *   Message is always wrapped in quotation marks (citation style).
  * - #input-slot: compose area (max 240 chars). Unblurs #slot progressively. Cleared and hidden after send.
- * - #submit-btn: POST /message with #input-slot content. On success: "Sent!", then compose area disappears,
- *   #slot fully unblurs (never re-blurs), poetic line appears at bottom (in current UI language).
- * - Sent messages are stored for the next visitor; never shown in #slot to the current user.
- * - Language: UI strings and poetic lines come from ANOTE_I18N; selection stored in localStorage.
+ * - #submit-btn: POST /message with #input-slot content. On success: "Sent!", compose area disappears,
+ *   #slot fully unblurs (never re-blurs), poetic line appears. Sent message is stored for next visitor only.
+ * - For deployment: set window.ANOTE_API_BASE to your backend URL if front and back are on different origins
+ *   (e.g. window.ANOTE_API_BASE = "https://your-api.example.com"). Leave unset for same-origin.
  *
  * Test: node server.js then http://localhost:3000
  */
@@ -22,6 +23,19 @@
   var MAX_CHARS = 240;
   var DEFAULT_MESSAGE = "Someone was here before you.";
   var BLUR_REVEAL_MS = 700;
+
+  /** Base URL for API (GET/POST /message). Same-origin if unset. For split deployment set window.ANOTE_API_BASE or data-api-base on body. */
+  function getApiBase() {
+    if (typeof window === "undefined") return "";
+    var base = window.ANOTE_API_BASE;
+    if (base != null && base !== "") return String(base).replace(/\/$/, "");
+    var el = document.body || document.documentElement;
+    if (el && el.getAttribute) {
+      base = el.getAttribute("data-api-base");
+      if (base) return String(base).replace(/\/$/, "");
+    }
+    return "";
+  }
 
   var slot = document.getElementById("slot");
   var inputSlot = document.getElementById("input-slot");
@@ -90,7 +104,8 @@
   }
 
   function loadMessage() {
-    fetch("/message")
+    var url = getApiBase() + "/message";
+    fetch(url)
       .then(function (res) {
         if (!res.ok) throw new Error("GET failed");
         return res.text();
@@ -169,7 +184,7 @@
 
     submitBtn.disabled = true;
 
-    fetch("/message", {
+    fetch(getApiBase() + "/message", {
       method: "POST",
       headers: { "Content-Type": "text/plain; charset=utf-8" },
       body: text,
