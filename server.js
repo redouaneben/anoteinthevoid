@@ -6,7 +6,8 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 
-// CORS: allow cross-origin requests (GET, POST, OPTIONS). All responses include these headers.
+// === CORS ===
+// Autorise ton frontend Vercel ou toute origine avec "*"
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": CORS_ORIGIN,
@@ -14,9 +15,10 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Message actuel (en mémoire)
+// === Message en mémoire ===
 let currentMessage = "Someone was here before you.";
 
+// === MIME types pour les fichiers ===
 const mimeTypes = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -24,6 +26,7 @@ const mimeTypes = {
   ".json": "application/json",
 };
 
+// === Fonction pour servir les fichiers ===
 function serveFile(res, filePath, corsHeaders) {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = mimeTypes[ext] || "text/plain";
@@ -38,6 +41,7 @@ function serveFile(res, filePath, corsHeaders) {
   });
 }
 
+// === Lire le corps POST ===
 function readBody(req, maxBytes = 256 * 1024) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -56,11 +60,12 @@ function readBody(req, maxBytes = 256 * 1024) {
   });
 }
 
+// === Serveur HTTP ===
 const server = http.createServer((req, res) => {
   const url = req.url?.split("?")[0] ?? "/";
   const method = req.method || "GET";
 
-  // OPTIONS (preflight): respond immediately with CORS so browser allows actual request
+  // OPTIONS (preflight) — CORS
   if (method === "OPTIONS") {
     res.writeHead(204, CORS_HEADERS);
     res.end();
@@ -69,12 +74,8 @@ const server = http.createServer((req, res) => {
 
   // GET /message
   if (url === "/message" && method === "GET") {
-    const body = currentMessage || "Someone was here before you.";
-    res.writeHead(200, {
-      "Content-Type": "text/plain; charset=utf-8",
-      ...CORS_HEADERS,
-    });
-    res.end(body, "utf-8");
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
+    res.end(currentMessage, "utf-8");
     return;
   }
 
@@ -84,18 +85,12 @@ const server = http.createServer((req, res) => {
       .then((raw) => {
         const text = (raw || "").trim();
         if (text.length > 240) {
-          res.writeHead(400, {
-            "Content-Type": "text/plain; charset=utf-8",
-            ...CORS_HEADERS,
-          });
+          res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
           res.end("Message too long (max 240 characters).", "utf-8");
           return;
         }
         currentMessage = text || currentMessage;
-        res.writeHead(200, {
-          "Content-Type": "text/plain; charset=utf-8",
-          ...CORS_HEADERS,
-        });
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
         res.end(currentMessage, "utf-8");
       })
       .catch(() => {
@@ -105,7 +100,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // GET / → page principale
+  // GET / → index.html
   if (url === "/" && method === "GET") {
     serveFile(res, path.join(__dirname, "index.html"), CORS_HEADERS);
     return;
@@ -122,11 +117,12 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // 404 with CORS so frontend can see the response
+  // 404 avec CORS pour le frontend
   res.writeHead(404, { "Content-Type": "text/plain", ...CORS_HEADERS });
   res.end("404 Not Found");
 });
 
+// === Démarrage serveur ===
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
