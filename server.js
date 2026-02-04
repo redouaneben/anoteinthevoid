@@ -4,124 +4,99 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.env.PORT) || 3000;
+// Railway injecte PORT automatiquement
+const PORT = process.env.PORT || 3000;
+
+// Utilisation des logs standards (capturés par Railway)
+function agentLog(hypothesisId, message, data = {}) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [${hypothesisId}] ${message}:`, JSON.stringify(data));
+}
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": CORS_ORIGIN,
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400", // Cache les requêtes OPTIONS pour 24h
 };
 
 let currentMessage = "Someone was here before you.";
 
-const mimeTypes = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-};
-
-function serveFile(res, filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = mimeTypes[ext] || "text/plain";
-  fs.readFile(filePath, (err, content) => {
-    if (err) {
-      res.writeHead(404, { "Content-Type": "text/plain", ...CORS_HEADERS });
-      res.end("404 Not Found");
-      return;
-    }
-    res.writeHead(200, { "Content-Type": contentType, ...CORS_HEADERS });
-    res.end(content, "utf-8");
-  });
-}
-
 function readBody(req, maxBytes = 256 * 1024) {
   return new Promise((resolve, reject) => {
     let body = "";
-    let total = 0;
     req.on("data", (chunk) => {
-      total += chunk.length;
-      if (total > maxBytes) {
+      body += chunk;
+      if (body.length > maxBytes) {
         req.destroy();
         reject(new Error("Payload too large"));
-        return;
       }
-      body += chunk;
     });
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = req.url?.split("?")[0] ?? "/";
   const method = req.method || "GET";
 
-  try {
-    // OPTIONS (préflight CORS)
-    if (method === "OPTIONS") {
-      res.writeHead(204, CORS_HEADERS);
-      res.end();
-      return;
-    }
+  // Preflight CORS
+  if (method === "OPTIONS") {
+    res.writeHead(204, CORS_HEADERS);
+    res.end();
+    return;
+  }
 
+  try {
     // GET /message
     if (url === "/message" && method === "GET") {
+      agentLog("H3", "GET /message");
       res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
-      res.end(currentMessage, "utf-8");
+      res.end(currentMessage);
       return;
     }
 
     // POST /message
     if (url === "/message" && method === "POST") {
-      readBody(req)
-        .then((raw) => {
-          const text = (raw || "").trim();
-          if (text.length > 240) {
-            res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
-            res.end("Message too long (max 240 characters).", "utf-8");
-            return;
-          }
-          currentMessage = text || currentMessage;
-          res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
-          res.end(currentMessage, "utf-8");
-        })
-        .catch((err) => {
-          console.error("POST /message error:", err);
-          res.writeHead(500, { "Content-Type": "text/plain", ...CORS_HEADERS });
-          res.end("Server error.");
-        });
-      return;
-    }
+      try {
+        const raw = await readBody(req);
+        const text = (raw || "").trim();
 
-    // GET /
-    if (url === "/" && method === "GET") {
-      serveFile(res, path.join(__dirname, "index.html"));
-      return;
-    }
+        if (text.length > 240) {
+          res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
+          res.end("Too long.");
+          return;
+        }
 
-    // Fichiers statiques
-    if (method === "GET" && !url.includes("..")) {
-      const rel = url.slice(1) || "index.html";
-      const filePath = path.resolve(__dirname, rel);
-      const root = path.resolve(__dirname);
-      if (filePath === root || filePath.startsWith(root + path.sep)) {
-        serveFile(res, filePath);
-        return;
+        if (text) currentMessage = text;
+        
+        agentLog("H2", "POST success", { length: text.length });
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
+        res.end(currentMessage);
+      } catch (err) {
+        agentLog("H2", "POST error", { error: err.message });
+        res.writeHead(413, { "Content-Type": "text/plain", ...CORS_HEADERS });
+        res.end("Error processing message.");
       }
+      return;
     }
 
-    // 404
+    // Fallback 404 pour les autres routes
     res.writeHead(404, { "Content-Type": "text/plain", ...CORS_HEADERS });
-    res.end("404 Not Found");
+    res.end("Not Found");
+
   } catch (err) {
-    console.error("Unexpected server error:", err);
-    res.writeHead(500, { "Content-Type": "text/plain", ...CORS_HEADERS });
-    res.end("Server error.");
+    agentLog("H4", "Critical Error", { error: err.message });
+    if (!res.writableEnded) {
+      res.writeHead(500, { "Content-Type": "text/plain", ...CORS_HEADERS });
+      res.end("Internal Server Error");
+    }
   }
 });
 
+// Écoute sur 0.0.0.0 est impératif pour Railway/Docker
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server launched on port ${PORT}`);
 });
