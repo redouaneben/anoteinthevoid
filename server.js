@@ -1,15 +1,30 @@
 import http from "http";
-import Redis from "ioredis"; // Nouvelle bibliothèque pour la mémoire
+import Redis from "ioredis";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
-// Connexion à Redis (Railway remplit REDIS_URL tout seul)
-const redis = new Redis(process.env.REDIS_URL);
+// CONFIGURATION REDIS SECURISEE
+// On vérifie si REDIS_URL existe, sinon on n'essaie pas de se connecter pour éviter le crash
+const redisUrl = process.env.REDIS_URL;
+let redis = null;
 
-// Utilisation des logs standards
+if (redisUrl) {
+  redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times) => Math.min(times * 50, 2000),
+  });
+
+  redis.on("error", (err) => {
+    console.error("[Redis Error] La connexion a échoué. Vérifiez votre variable REDIS_URL sur Railway.", err.message);
+  });
+} else {
+  console.warn("[Attention] La variable REDIS_URL est absente. Les messages ne seront pas sauvegardés après un redémarrage.");
+}
+
+// LOGS
 function agentLog(hypothesisId, message, data = {}) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [${hypothesisId}] ${message}:`, JSON.stringify(data));
@@ -23,19 +38,20 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-// Variable temporaire (sera mise à jour par Redis juste après)
 let currentMessage = "Someone was here before you.";
 
-// CHARGEMENT INITIAL : On récupère le dernier message enregistré dans Redis
+// CHARGEMENT INITIAL DEPUIS REDIS
 async function loadMessage() {
-  try {
-    const savedMessage = await redis.get("void_note");
-    if (savedMessage) {
-      currentMessage = savedMessage;
-      console.log("Message récupéré depuis Redis :", currentMessage);
+  if (redis) {
+    try {
+      const savedMessage = await redis.get("void_note");
+      if (savedMessage) {
+        currentMessage = savedMessage;
+        console.log("Message chargé depuis Redis :", currentMessage);
+      }
+    } catch (err) {
+      console.error("Impossible de lire Redis au démarrage.");
     }
-  } catch (err) {
-    console.error("Erreur lecture Redis :", err);
   }
 }
 loadMessage();
@@ -66,7 +82,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    // GET /message
+    // GET /message (Pour afficher le message flouté)
     if (url === "/message" && method === "GET") {
       agentLog("H3", "GET /message");
       res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
@@ -74,7 +90,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // POST /message
+    // POST /message (Pour envoyer une nouvelle note)
     if (url === "/message" && method === "POST") {
       try {
         const raw = await readBody(req);
@@ -88,11 +104,13 @@ const server = http.createServer(async (req, res) => {
 
         if (text) {
           currentMessage = text;
-          // SAUVEGARDE DANS REDIS : pour ne pas perdre le message au redémarrage
-          await redis.set("void_note", text);
+          // On sauvegarde dans Redis si disponible
+          if (redis) {
+            await redis.set("void_note", text).catch(e => console.error("Erreur sauvegarde Redis"));
+          }
         }
         
-        agentLog("H2", "POST success (Saved to Redis)", { length: text.length });
+        agentLog("H2", "POST success", { length: text.length });
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
         res.end(currentMessage);
       } catch (err) {
