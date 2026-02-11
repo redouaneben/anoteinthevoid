@@ -1,13 +1,15 @@
 import http from "http";
-import fs from "fs";
+import Redis from "ioredis"; // Nouvelle bibliothèque pour la mémoire
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Railway injecte PORT automatiquement
 const PORT = process.env.PORT || 3000;
 
-// Utilisation des logs standards (capturés par Railway)
+// Connexion à Redis (Railway remplit REDIS_URL tout seul)
+const redis = new Redis(process.env.REDIS_URL);
+
+// Utilisation des logs standards
 function agentLog(hypothesisId, message, data = {}) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [${hypothesisId}] ${message}:`, JSON.stringify(data));
@@ -18,10 +20,25 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": CORS_ORIGIN,
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400", // Cache les requêtes OPTIONS pour 24h
+  "Access-Control-Max-Age": "86400",
 };
 
+// Variable temporaire (sera mise à jour par Redis juste après)
 let currentMessage = "Someone was here before you.";
+
+// CHARGEMENT INITIAL : On récupère le dernier message enregistré dans Redis
+async function loadMessage() {
+  try {
+    const savedMessage = await redis.get("void_note");
+    if (savedMessage) {
+      currentMessage = savedMessage;
+      console.log("Message récupéré depuis Redis :", currentMessage);
+    }
+  } catch (err) {
+    console.error("Erreur lecture Redis :", err);
+  }
+}
+loadMessage();
 
 function readBody(req, maxBytes = 256 * 1024) {
   return new Promise((resolve, reject) => {
@@ -42,7 +59,6 @@ const server = http.createServer(async (req, res) => {
   const url = req.url?.split("?")[0] ?? "/";
   const method = req.method || "GET";
 
-  // Preflight CORS
   if (method === "OPTIONS") {
     res.writeHead(204, CORS_HEADERS);
     res.end();
@@ -70,9 +86,13 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        if (text) currentMessage = text;
+        if (text) {
+          currentMessage = text;
+          // SAUVEGARDE DANS REDIS : pour ne pas perdre le message au redémarrage
+          await redis.set("void_note", text);
+        }
         
-        agentLog("H2", "POST success", { length: text.length });
+        agentLog("H2", "POST success (Saved to Redis)", { length: text.length });
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", ...CORS_HEADERS });
         res.end(currentMessage);
       } catch (err) {
@@ -83,7 +103,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Fallback 404 pour les autres routes
     res.writeHead(404, { "Content-Type": "text/plain", ...CORS_HEADERS });
     res.end("Not Found");
 
@@ -96,7 +115,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// Écoute sur 0.0.0.0 est impératif pour Railway/Docker
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server launched on port ${PORT}`);
 });
