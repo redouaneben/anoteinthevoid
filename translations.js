@@ -4,7 +4,7 @@
  */
 var ANOTE_I18N = {
   en: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Leave something for the next person.",
     buttonLeave: "Leave it",
     buttonSent: "Sent!",
@@ -25,7 +25,7 @@ var ANOTE_I18N = {
     ],
   },
   fr: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Laissez quelque chose pour la personne suivante.",
     buttonLeave: "Laisser",
     buttonSent: "Envoyé !",
@@ -46,7 +46,7 @@ var ANOTE_I18N = {
     ],
   },
   es: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Deja algo para la siguiente persona.",
     buttonLeave: "Dejarlo",
     buttonSent: "¡Enviado!",
@@ -67,7 +67,7 @@ var ANOTE_I18N = {
     ],
   },
   de: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Lass etwas für die nächste Person.",
     buttonLeave: "Hinterlassen",
     buttonSent: "Gesendet!",
@@ -88,7 +88,7 @@ var ANOTE_I18N = {
     ],
   },
   it: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Lascia qualcosa per la prossima persona.",
     buttonLeave: "Lascialo",
     buttonSent: "Inviato!",
@@ -109,7 +109,7 @@ var ANOTE_I18N = {
     ],
   },
   pt: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "Deixe algo para a próxima pessoa.",
     buttonLeave: "Deixar",
     buttonSent: "Enviado!",
@@ -130,7 +130,7 @@ var ANOTE_I18N = {
     ],
   },
   ja: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "次の人のために、何か残してください。",
     buttonLeave: "残す",
     buttonSent: "送った！",
@@ -151,7 +151,7 @@ var ANOTE_I18N = {
     ],
   },
   zh: {
-    title: "Anote in the Void",
+    title: "A note in the Void",
     placeholder: "给下一个人留点什么。",
     buttonLeave: "留下",
     buttonSent: "已发送！",
@@ -184,3 +184,4 @@ var ANOTE_LANGS = [
   { code: "ja", name: "日本語" },
   { code: "zh", name: "简体中文" },
 ];
+
